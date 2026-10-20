@@ -57,7 +57,7 @@ window.addEventListener('load', async () => {
     ok('tabs switch', $('t-emotion').classList.contains('active') && !$('t-identity').classList.contains('active'), 'emotion panel active');
     document.querySelector('#trackerList li[data-step="7"]');
     window.__setTrackerStep && window.__setTrackerStep(7, 'done');
-    ok('tracker -> 9/9', $('trackerCount').textContent === '9/9', $('trackerCount').textContent);
+    ok('tracker -> 10/10', $('trackerCount').textContent === '10/10', $('trackerCount').textContent);
     ok('FAQ present', document.querySelectorAll('.faq details').length >= 6, document.querySelectorAll('.faq details').length + ' items');
     ok('all sections present', ['rppg', 'oculomics', 'insights', 'longevity', 'proof', 'privacy', 'faq'].every(id => !!$(id)), '9 sections');
   } catch (e) { ok('UI wiring', false, e.message); }
