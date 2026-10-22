@@ -85,11 +85,6 @@
     if (!d || d.well === undefined) return;
     document.body.classList.toggle('scanning', !!d.good);
   });
-  window.addEventListener('oculomics:done', e => {
-    const d = e.detail;
-    if (d && d.biomarkers) document.body.classList.add('ocu-done');
-  });
-
   /* ---------- live to-do update (build status, right column) ---------- */
   if (window.__setTrackerStep) window.__setTrackerStep(6, 'done');
 
@@ -98,8 +93,10 @@
   style.textContent = 'section[id],div[id]{scroll-margin-top:78px}';
   document.head.appendChild(style);
 
-  /* ---------- keyboard nicety: Esc stops the camera ---------- */
+  /* ---------- keyboard nicety: Esc stops whichever camera is live ---------- */
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && window.RPPG && window.RPPG.running) window.RPPG.stop(true);
+    if (e.key !== 'Escape') return;
+    if (window.RPPG && window.RPPG.running) window.RPPG.stop(true);
+    if (window.Iris && window.Iris.running) window.Iris.stop(true);
   });
 })();

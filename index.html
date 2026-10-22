@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Eye Scan — rPPG Face Scans & AI Retinal Biomarkers</title>
-<meta name="description" content="AI Eye Scan: contactless rPPG vital-sign scanning from your webcam plus Oculomics retinal biomarker analysis — all processed on your device.">
+<title>AI Eye Scan — rPPG Pulse &amp; Iris Biometrics, Measured On-Device</title>
+<meta name="description" content="AI Eye Scan: contactless rPPG pulse measurement and Daugman-style iris biometrics, computed entirely in your browser. Clear limits, no diagnoses, no uploads.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="css/styles.css">
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous" onerror="window.__faceMeshFailed=true"></script>
+<script src="vendor/face_mesh/face_mesh.js" onerror="window.__faceMeshFailed=true"></script>
 </head>
 <body>
 
@@ -24,9 +24,9 @@
   </a>
   <nav class="nav-links" id="navLinks">
     <a href="#rppg">Face Scan (rPPG)</a>
-    <a href="#oculomics">Retina Scan</a>
+    <a href="#iris">Iris Scan</a>
     <a href="#insights">What It Reads</a>
-    <a href="#longevity">Longevity</a>
+    <a href="#longevity">Evidence</a>
     <a href="#proof">Proof of Human</a>
     <a href="#privacy">Privacy</a>
     <a href="#faq">FAQ</a>
@@ -46,19 +46,19 @@
     <span class="eyebrow">Non-invasive · On-device · Real-time</span>
     <h1>Read your body<br>through your <span class="grad">eyes</span>.</h1>
     <p class="lead">
-      <strong>AI Eye Scan</strong> unites two breakthroughs. <em>Remote Photoplethysmography (rPPG)</em>
-      turns any ordinary webcam into a contactless vital-sign sensor by reading the micro-blushes of blood
-      beneath your skin. <em>Oculomics</em> reads the retina — the only place where deep microvasculature
-      and CNS tissue are visible non-invasively — to forecast systemic health years ahead.
-      Every calculation runs locally in your browser. Nothing is uploaded.
+      <strong>AI Eye Scan</strong> combines two genuinely measurable signals. <em>Remote Photoplethysmography (rPPG)</em>
+      turns a webcam into a contactless pulse sensor by reading the micro-blushes of blood beneath your skin.
+      <em>Iris biometrics</em> turns a close-up eye photo into a Daugman-style iris code — the same principle behind
+      passport and phone iris unlock — plus observable iris features. Every calculation runs locally in your browser.
+      Nothing is uploaded, and nothing here is a diagnosis.
     </p>
     <div class="hero-actions">
       <button class="btn btn-primary" data-scan-start>Enable Camera &amp; Scan</button>
-      <a class="btn btn-ghost" href="#oculomics">Upload Retinal Scan</a>
+      <a class="btn btn-ghost" href="#iris">Try Iris Scan</a>
     </div>
     <ul class="hero-stats">
-      <li><b>6</b><span>live biomarkers</span></li>
-      <li><b>30 s</b><span>scan session</span></li>
+      <li><b>5</b><span>measured signals</span></li>
+      <li><b>60 s</b><span>HRV session</span></li>
       <li><b>0 KB</b><span>data uploaded</span></li>
       <li><b>2</b><span>technologies</span></li>
     </ul>
@@ -152,27 +152,27 @@
         <div class="metric accent-violet" id="cardHrv">
           <span class="metric-label">HRV (RMSSD)</span>
           <span class="metric-value"><b id="mHrv">--</b><i>ms</i></span>
-          <span class="metric-sub">beat-to-beat variability · autonomic tone</span>
+          <span class="metric-sub" id="mHrvSub">needs 20 beat intervals</span>
         </div>
         <div class="metric accent-teal">
           <span class="metric-label">Respiratory Rate</span>
           <span class="metric-value"><b id="mRr">--</b><i>br/min</i></span>
-          <span class="metric-sub">via micro-movement &amp; pulse modulation</span>
+          <span class="metric-sub" id="mRrSub">experimental · pulse modulation</span>
         </div>
         <div class="metric accent-amber">
-          <span class="metric-label">Oxygen Saturation</span>
-          <span class="metric-value"><b id="mSpo2">--</b><i>% SpO₂</i></span>
-          <span class="metric-sub">multi-wavelength reflection estimate</span>
+          <span class="metric-label">Pulse Amplitude</span>
+          <span class="metric-value"><b id="mAmp">--</b><i>a.u.</i></span>
+          <span class="metric-sub">measured AC component, green channel</span>
         </div>
         <div class="metric accent-rose">
-          <span class="metric-label">Blood Pressure</span>
-          <span class="metric-value"><b id="mBp">--/--</b><i>mmHg</i></span>
-          <span class="metric-sub">pulse-wave algorithmic estimate</span>
+          <span class="metric-label">Perfusion Index</span>
+          <span class="metric-value"><b id="mPi">--</b><i>%</i></span>
+          <span class="metric-sub">pulsatile ÷ static green light</span>
         </div>
         <div class="metric accent-lime">
-          <span class="metric-label">Wellness / Stress</span>
+          <span class="metric-label">Autonomic Load</span>
           <span class="metric-value"><b id="mWell">--</b><i>/100</i></span>
-          <span class="metric-sub" id="mWellSub">holistic fatigue index</span>
+          <span class="metric-sub" id="mWellSub">derived index · non-clinical</span>
         </div>
       </div>
 
@@ -192,140 +192,161 @@
 
   <!-- how it works -->
   <div class="steps" id="how-it-works">
-    <div class="step reveal"><b>01</b><h4>Landmark mapping</h4><p>MediaPipe Face Mesh locks 468 facial landmarks per frame and isolates the ROIs: forehead, eyelids, periorbital and cheek zones where capillaries sit closest to the surface.</p></div>
+    <div class="step reveal"><b>01</b><h4>Landmark mapping</h4><p>MediaPipe Face Mesh locks 478 facial landmarks per frame and isolates the ROIs: forehead, eyelids, periorbital and cheek zones where capillaries sit closest to the surface.</p></div>
     <div class="step reveal"><b>02</b><h4>Micro-blush extraction</h4><p>Mean green-light absorption is sampled from those ROIs 30× per second. Blood volume pulses imprint a tiny periodic wave on the green channel — invisible to the eye, obvious to the math.</p></div>
-    <div class="step reveal"><b>03</b><h4>Spectral decoding</h4><p>The signal is detrended, band-passed and transformed (FFT). The dominant frequency becomes BPM; beat intervals become HRV; amplitude and waveform shape resolve SpO₂, BP and breathing.</p></div>
+    <div class="step reveal"><b>03</b><h4>Spectral decoding</h4><p>The signal is detrended, band-passed and transformed (FFT). The dominant frequency becomes BPM, beat intervals become HRV, and the pulse amplitude plus low-frequency modulation give a perfusion index and an experimental breathing estimate.</p></div>
   </div>
 
   <!-- biomarkers -->
-  <h3 class="sub-head reveal">Features &amp; biomarkers collected (real-time)</h3>
+  <h3 class="sub-head reveal">What this build actually measures</h3>
   <div class="cards-3">
-    <article class="info-card reveal"><h4>♥ Heart Rate (BPM)</h4><p>Extracts the dominant pulse frequency to give an exact beats-per-minute count.</p></article>
-    <article class="info-card reveal"><h4>⌁ Heart Rate Variability (HRV)</h4><p>Measures millisecond changes between beats to assess autonomic nervous system health and stress.</p></article>
-    <article class="info-card reveal"><h4>≈ Respiratory Rate</h4><p>Tracks breathing rate (breaths per minute) via microscopic movement and pulse-amplitude modulation.</p></article>
-    <article class="info-card reveal"><h4>↯ Blood Pressure Estimates</h4><p>Uses algorithmic analysis of the blood pulse wave to calculate systolic and diastolic pressure.</p></article>
-    <article class="info-card reveal"><h4>◉ Oxygen Saturation (SpO₂)</h4><p>Analyses multi-wavelength light reflection to estimate blood oxygen levels.</p></article>
-    <article class="info-card reveal"><h4>◐ Fatigue / Wellness Index</h4><p>Combines vital signs to output a holistic “Wellness or Stress Score”.</p></article>
+    <article class="info-card reveal"><h4>♥ Heart Rate (BPM)</h4><p>Dominant frequency of the green-channel pulse wave, refined by parabolic interpolation of the FFT peak. Accurate to roughly ±3 BPM under good, diffuse light.</p></article>
+    <article class="info-card reveal"><h4>⌁ Heart Rate Variability (RMSSD)</h4><p>Beat-to-beat intervals are accumulated for 60 seconds before a value is shown. A 10-second window does not contain enough beats to mean anything.</p></article>
+    <article class="info-card reveal"><h4>≈ Respiratory Rate</h4><p>Experimental: breathing modulates pulse amplitude and baseline. Reported when the 0.1–0.6 Hz band has a clear peak.</p></article>
+    <article class="info-card reveal"><h4>◉ Pulse Amplitude &amp; Perfusion Index</h4><p>Direct measurements of the pulsatile component of reflected green light. Unitless — useful for tracking your own signal over time, not for comparing people.</p></article>
+    <article class="info-card reveal"><h4>⊘ SpO₂ and Blood Pressure</h4><p><b>Not measured by this site.</b> Pulse oximetry needs red and infrared wavelengths; cuffless BP needs per-person calibration. An RGB webcam cannot provide either, so no number is shown.</p></article>
+    <article class="info-card reveal"><h4>◐ Autonomic Load</h4><p>A derived 0–100 index built from heart rate, HRV and breathing. It is a wellness heuristic, not a stress diagnosis or a psychiatric measure.</p></article>
   </div>
 </section>
 
-<!-- ================= TECHNOLOGY 2 : OCULOMICS ================= -->
-<section class="section section-alt" id="oculomics">
+<!-- ================= TECHNOLOGY 2 : IRIS ================= -->
+<section class="section section-alt" id="iris">
   <div class="section-head reveal">
-    <span class="eyebrow">Technology 2 · Deep-Learning Medical Imaging</span>
-    <h2>Oculomics <span class="grad">AI Retinal Biomarker Analysis</span></h2>
-    <p>The integration of high-resolution eye-imaging hardware with deep-learning AI models. Rather than a normal
-      phone camera, a clinician uses Color Fundus Photography (CFP) or Optical Coherence Tomography (OCT) to look
-      inside the eye. The AI scans the retina at the back of the eye — <strong>the only place in the entire human
-      body where deep blood vessels and central nervous system tissue can be viewed directly and non-invasively.</strong></p>
+    <span class="eyebrow">Technology 2 · Iris biometrics</span>
+    <h2>Your iris is a <span class="grad">verifiable key</span> — not a medical oracle</h2>
+    <p>An iris photograph honestly gives you two things: a <strong>biometric template</strong> that can prove identity
+      with very low error rates, and a set of <strong>observable iris features</strong> (colour, pupil size, crypts,
+      pigment spots). It does <strong>not</strong> read your genes or diagnose disease. This module shows exactly what
+      is measured, what is inferred, and what needs a clinician. Retinal (fundus) analysis is deliberately
+      <strong>not</strong> performed here — it needs a fundus camera and a validated model.</p>
   </div>
 
-  <div class="ocu-layout">
-    <!-- input side -->
-    <div class="ocu-input reveal">
-      <div class="drop" id="ocuDrop">
-        <canvas id="ocuCanvas" width="640" height="480" hidden></canvas>
-        <canvas id="ocuOverlay" width="640" height="480" hidden></canvas>
-        <img id="ocuPreview" alt="Retinal scan preview" hidden>
-        <div class="drop-idle" id="dropIdle">
+  <div class="iris-layout">
+    <div class="iris-input reveal">
+      <div class="iris-stage" id="irisStage">
+        <video id="irisVideo" playsinline muted autoplay></video>
+        <canvas id="irisOverlay"></canvas>
+        <div class="iris-hud">
+          <span class="badge" id="irisBadgeEyes">Eyes: —</span>
+          <span class="badge" id="irisBadgeQuality">Quality: —</span>
+          <span class="badge badge-time" id="irisBadgeFps">— fps</span>
+        </div>
+        <div class="iris-empty" id="irisEmpty">
           <div class="drop-glyph">◎</div>
-          <h4>Drop a fundus / OCT image here</h4>
-          <p>or choose a file — JPG, PNG, WEBP. Processed locally, never uploaded.</p>
-          <div class="drop-actions">
-            <label class="btn btn-sm btn-primary">Choose image<input type="file" id="ocuFile" accept="image/*" hidden></label>
-            <button class="btn btn-sm btn-primary" id="ocuCam">Take camera photo</button>
-            <button class="btn btn-sm btn-ghost" id="ocuDemo">Generate demo fundus</button>
-          </div>
-          <p class="drop-note">“Take camera photo” opens a live view — align your eye, press capture, and the photo
-            is fed straight into the retinal analysis.</p>
-        </div>
-        <div class="ocu-scanline" id="ocuScanline" hidden></div>
-        <div class="ocu-stage" id="ocuStage" hidden><span id="ocuStageText">Segmenting vasculature…</span></div>
-        <div class="cam-capture" id="camCapture" hidden>
-          <video id="eyeCam" playsinline autoplay muted></video>
-          <div class="eye-guide" aria-hidden="true"><span></span></div>
-          <div class="cam-note">Align your eye inside the oval · even lighting · stay still</div>
-          <div class="cam-actions">
-            <button class="btn btn-sm btn-primary" id="eyeCaptureBtn">Capture photo</button>
-            <button class="btn btn-sm btn-ghost" id="eyeCancelBtn">Cancel</button>
-          </div>
+          <h3 id="irisEmptyTitle">Iris camera off</h3>
+          <p id="irisEmptyText">Start the camera and bring one eye close to the lens. The iris should fill most of the frame.</p>
+          <button class="btn btn-primary btn-sm" id="irisStart">Enable iris camera</button>
         </div>
       </div>
 
-      <div class="ocu-controls">
-        <label class="field">
-          <span>Chronological age (for biological-age gap)</span>
-          <input type="number" id="ocuAge" min="10" max="99" value="34">
+      <div class="iris-quality">
+        <div class="iris-q"><span>Focus</span><div class="qbar"><i id="qFocus"></i></div><b id="qFocusVal">0%</b></div>
+        <div class="iris-q"><span>Iris size</span><div class="qbar"><i id="qSize"></i></div><b id="qSizeVal">0%</b></div>
+        <div class="iris-q"><span>Uncovered</span><div class="qbar"><i id="qOpen"></i></div><b id="qOpenVal">0%</b></div>
+        <div class="iris-q"><span>No glare</span><div class="qbar"><i id="qGlare"></i></div><b id="qGlareVal">0%</b></div>
+      </div>
+
+      <div class="iris-strip">
+        <header><span>Normalised iris · polar unwrap</span><span class="iris-live"><span class="iris-swatch" id="irisLiveSwatch"></span><span id="irisLiveColour">—</span></span></header>
+        <canvas id="irisUnwrap" width="512" height="128"></canvas>
+        <p class="hint">The iris ring is unwrapped from the pupil boundary to the limbus. Semi-transparent samples are eyelash shadow or specular glare, and are excluded from the code.</p>
+      </div>
+
+      <div class="iris-controls">
+        <div class="iris-buttons">
+          <button class="btn btn-sm btn-primary" id="irisAnalyze" disabled>Analyse iris</button>
+          <button class="btn btn-sm btn-ghost" id="irisStop">Stop camera</button>
+        </div>
+        <label class="iris-consent">
+          <input type="checkbox" id="irisConsent">
+          <span>Allow this browser to store an iris template in <code>localStorage</code>. It never leaves this device, but it is sensitive biometric data.</span>
         </label>
-        <button class="btn btn-primary btn-block" id="ocuAnalyze">Run AI retinal analysis</button>
-        <p class="hint" id="ocuHint">No image yet? Just press the button — a demo fundus is generated for you automatically.
-          Metrics are computed live from your image pixels (vessel density, tortuosity, lesion load, RNFL texture) —
-          a demonstration model, not a cleared medical device.</p>
+        <div class="iris-buttons">
+          <button class="btn btn-sm btn-primary" id="irisEnroll" disabled>Create local ID</button>
+          <button class="btn btn-sm btn-ghost" id="irisVerify" disabled>Verify against local ID</button>
+          <button class="btn btn-sm btn-danger" id="irisForget" disabled>Forget</button>
+        </div>
+        <p class="hint iris-hint" id="irisHint">Camera off — press “Enable iris camera”.</p>
       </div>
     </div>
 
-    <!-- results side -->
-    <div class="ocu-results">
-      <div class="ocu-summary" id="ocuSummary">
-        <div class="bioage">
-          <span class="metric-label">Biological age</span>
-          <span class="metric-value"><b id="ocBioAge">--</b><i>yrs</i></span>
-          <span class="metric-sub">Retinal Age Gap <b id="ocGap">--</b> yrs vs chronological</span>
+    <div class="iris-results">
+      <div class="iris-summary">
+        <span class="metric-label">Iris signature · SHA-256 of the code, first 8 bytes</span>
+        <div class="iris-sig" id="irisSignature">— — — —</div>
+        <div class="iris-status-row">
+          <span class="iris-status idle" id="irisIdStatus">Not enrolled</span>
+          <span class="badge" id="irisMatchDist">—</span>
         </div>
-        <div class="bioage-bar"><i id="ocGapBar"></i></div>
-        <p class="ocu-verdict" id="ocVerdict">Upload or generate a retinal image, then run the analysis to see
-          systemic biomarkers, longevity signals and identity readouts.</p>
+        <p class="hint" id="irisIdSub">Enrol once, then a later scan can be compared against the stored template.</p>
+        <div class="match-bar"><i id="irisMatchBar"></i></div>
+        <div class="match-scale"><span>0.00 genuine</span><span>0.35</span><span>0.45</span><span>1.00 different</span></div>
       </div>
 
-      <div class="ocu-grid">
-        <article class="ocu-card"><header><h4>Cardiovascular Risk Intelligence</h4><span class="tag" id="cvTag">—</span></header>
-          <p>Predicts 5-to-10-year risk of heart attacks, strokes or coronary artery stenosis by measuring narrowing, twisting or calcification of retinal arteries.</p>
-          <div class="risk-bar"><i id="cvBar"></i></div><span class="risk-num" id="cvNum">—</span></article>
-
-        <article class="ocu-card"><header><h4>Chronic Kidney Disease (CKD)</h4><span class="tag" id="ckdTag">—</span></header>
-          <p>Evaluates micro-vascular breakdown to identify early-stage kidney disease without requiring a blood draw.</p>
-          <div class="risk-bar"><i id="ckdBar"></i></div><span class="risk-num" id="ckdNum">—</span></article>
-
-        <article class="ocu-card"><header><h4>Metabolic Health Tracking</h4><span class="tag" id="metTag">—</span></header>
-          <p>Flags advanced tissue damage from Type 2 Diabetes (Diabetic Retinopathy) and long-standing chronic hypertension.</p>
-          <div class="risk-bar"><i id="metBar"></i></div><span class="risk-num" id="metNum">—</span></article>
-
-        <article class="ocu-card"><header><h4>Neurodegenerative Biomarkers</h4><span class="tag" id="neuroTag">—</span></header>
-          <p>Identifies microscopic thinning in retinal nerve layers — early warning signs for Alzheimer’s, Parkinson’s and Dementia, years before symptoms.</p>
-          <div class="risk-bar"><i id="neuroBar"></i></div><span class="risk-num" id="neuroNum">—</span></article>
-
-        <article class="ocu-card"><header><h4>Circulatory Mortality (QUARTZ)</h4><span class="tag" id="quaTag">—</span></header>
-          <p>Analyses exact retinal artery width and surface area to map potential fatal circulatory events — massive stroke, coronary events.</p>
-          <div class="risk-bar"><i id="quaBar"></i></div><span class="risk-num" id="quaNum">—</span></article>
-
-        <article class="ocu-card"><header><h4>Mortality Risk · Retinal Age Gap</h4><span class="tag" id="mortTag">—</span></header>
-          <p>A retinal age 3+ years above chronological age correlates with a <b>49–67% higher all-cause mortality risk</b> — hidden systemic cellular damage, surfaced early.</p>
-          <div class="risk-bar"><i id="mortBar"></i></div><span class="risk-num" id="mortNum">—</span></article>
+      <div class="iris-pheno">
+        <article class="ocu-card">
+          <header><h4>Iris colour</h4><span class="iris-swatch" id="irisSwatch"></span></header>
+          <b id="irisColourName">—</b>
+          <p id="irisColourMeta">Run an analysis to measure hue, saturation and brightness.</p>
+          <p class="hint" id="irisHueMeta"></p>
+        </article>
+        <article class="ocu-card">
+          <header><h4>Pupil : iris ratio</h4></header>
+          <b id="irisPupil">—</b>
+          <p id="irisPupilMeta">Measured from the photo — lighting affects pupil size.</p>
+        </article>
+        <article class="ocu-card">
+          <header><h4>Crypts</h4></header>
+          <b id="irisCrypts">—</b>
+          <p id="irisCryptsMeta">Collarette texture is a strong biometric, not a disease marker.</p>
+        </article>
+        <article class="ocu-card">
+          <header><h4>Pigment spots</h4></header>
+          <b id="irisSpots">—</b>
+          <p id="irisSpotsMeta">Iris freckles are common and usually benign.</p>
+        </article>
+        <article class="ocu-card">
+          <header><h4>Texture / masked area</h4></header>
+          <b id="irisTexture">—</b>
+          <p id="irisTextureMeta">How much of the iris was usable.</p>
+        </article>
+        <article class="ocu-card">
+          <header><h4>Heterochromia</h4></header>
+          <b id="irisHetero">—</b>
+          <p id="irisHeteroMeta">Compares left and right iris hue in the same frame.</p>
+        </article>
+        <article class="ocu-card">
+          <header><h4>Anisocoria</h4></header>
+          <b id="irisAniso">—</b>
+          <p id="irisAnisoMeta">Compares left and right pupil size in the same frame.</p>
+        </article>
       </div>
 
-      <div class="ocu-identity" id="ocuIdentity" hidden>
-        <h4>Identity &amp; lifestyle readout</h4>
-        <ul>
-          <li><span>Estimated chronological age</span><b id="idAge">—</b></li>
-          <li><span>Biological sex prediction</span><b id="idSex">—</b></li>
-          <li><span>Ancestry / pigmentation hint</span><b id="idEth">—</b></li>
-          <li><span>Smoking-pattern signature</span><b id="idSmoke">—</b></li>
-          <li><span>Retinal vascular template (biometric hash)</span><b id="idHash">—</b></li>
+      <div class="iris-signs-wrap">
+        <h4>Ocular signs — screening prompts only</h4>
+        <ul class="iris-signs" id="irisSigns">
+          <li class="iris-sign"><div class="iris-sign-head"><b>No analysis yet</b></div><p>Run the iris analysis to populate measured signs.</p></li>
         </ul>
-        <p class="hint">The retinal vascular layout is unique per person — an ironclad biometric identifier, the
-          same property used for proof-of-personhood systems.</p>
+      </div>
+
+      <div class="iris-limits">
+        <h4>What an iris photo cannot tell you</h4>
+        <ul class="ticks">
+          <li><b>Your genes.</b> Iris colour is ~98% heritable (largely HERC2/OCA2), but this measures the phenotype, not the genotype. Carrier status and polygenic risk need a DNA test.</li>
+          <li><b>Specific diseases.</b> Diabetes, kidney disease, Alzheimer's and Parkinson's are not diagnosable from an iris photograph. Iridology has failed controlled testing.</li>
+          <li><b>Neurology.</b> Retinal nerve-fibre thinning is a real research marker, but it requires OCT imaging — not an iris selfie.</li>
+          <li><b>Emotion, lies or substance use.</b> No validated iris-photo method exists for any of these.</li>
+        </ul>
+        <p class="hint">The only genuinely strong claim here is <b>identity</b>: iris texture is stable across life and carries enough entropy for biometric matching. Even that degrades with contact lenses, glare, eyelashes and low resolution.</p>
       </div>
     </div>
   </div>
 
-  <h3 class="sub-head reveal">Features &amp; biomarkers predicted (long-term / systemic)</h3>
-  <div class="cards-3">
-    <article class="info-card reveal"><h4>◈ Cardiovascular Risk Intelligence</h4><p>Predicts your 5-to-10-year risk of heart attacks, strokes, or coronary artery stenosis by measuring the narrowing, twisting, or calcification of retinal arteries.</p></article>
-    <article class="info-card reveal"><h4>◔ Chronic Kidney Disease (CKD)</h4><p>Evaluates micro-vascular breakdown to identify early-stage kidney disease without requiring a blood draw.</p></article>
-    <article class="info-card reveal"><h4>⬡ Metabolic Health Tracking</h4><p>Flags advanced tissue damage from Type 2 Diabetes (Diabetic Retinopathy) and long-standing chronic hypertension.</p></article>
-    <article class="info-card reveal"><h4>🧠 Neurodegenerative Biomarkers</h4><p>Identifies microscopic thinning in the retinal nerve layers that serve as early warning signs for Alzheimer’s, Parkinson’s disease, and Dementia years before physical symptoms appear.</p></article>
-    <article class="info-card reveal"><h4>⧗ Biological Age Calculation</h4><p>Analyses vascular wear-and-tear to determine if your body's organs are aging faster than your actual chronological age.</p></article>
-    <article class="info-card reveal"><h4>⚕ Clinical hardware</h4><p>Color Fundus Photography (CFP) and Optical Coherence Tomography (OCT) provide the high-resolution input; deep-learning models read what no naked eye can.</p></article>
+  <h3 class="sub-head reveal">How the iris code works</h3>
+  <div class="steps">
+    <div class="step reveal"><b>01</b><h4>Localise &amp; unwrap</h4><p>MediaPipe iris landmarks from the 478-point face mesh give the pupil centre and limbus. The iris ring is resampled into a 512 × 64 polar “rubber sheet”, so pupil dilation and head tilt stop mattering.</p></div>
+    <div class="step reveal"><b>02</b><h4>Gabor phase code</h4><p>Concentric ring structure is removed, local contrast is normalised, then a bank of log-Gabor filters at 3 scales × 6 orientations encodes phase rather than brightness. Each filter pair contributes two bits — the same principle as Daugman's iris code.</p></div>
+    <div class="step reveal"><b>03</b><h4>Masked Hamming match</h4><p>Eyelash and glare samples are masked out. Matching searches ±11° of rotation and ±1 radial band, then reports the Hamming distance: below 0.35 suggests the same iris, above 0.45 suggests a different one, and the band between is inconclusive.</p></div>
   </div>
 </section>
 
@@ -333,19 +354,19 @@
 <section class="section" id="insights">
   <div class="section-head reveal">
     <span class="eyebrow">Beyond vitals</span>
-    <h2>What a <span class="grad">30-second scan</span> can reveal about you</h2>
-    <p>Both technologies double as pattern-recognition engines. This is the full inference surface — the reason
-      consent, transparency and on-device processing matter.</p>
+    <h2>What eye scans can — and <span class="grad">cannot</span> — reveal</h2>
+    <p>Published research does infer some traits from eyes. The gap between “a paper reported an AUC” and “this website
+      can measure it on your phone” is enormous. Each card below is labelled with what this build actually does.</p>
   </div>
 
   <div class="live-strip reveal" id="liveStrip">
-    <h4>Live scan inferences <span class="strip-note">— run a face scan to populate</span></h4>
+    <h4>Live measured values <span class="strip-note">— run a face scan to populate</span></h4>
     <div class="strip-grid">
-      <div><span>Stress / anxiety</span><b id="infStress">—</b></div>
-      <div><span>Sleep debt</span><b id="infSleep">—</b></div>
-      <div><span>Fitness level</span><b id="infFitness">—</b></div>
-      <div><span>Current mood</span><b id="infMood">—</b></div>
-      <div><span>Substance / impairment</span><b id="infSubstance">—</b></div>
+      <div><span>Heart rate</span><b id="infBpm">—</b></div>
+      <div><span>HRV (RMSSD)</span><b id="infHrv">—</b></div>
+      <div><span>Breathing</span><b id="infRr">—</b></div>
+      <div><span>Signal quality</span><b id="infQuality">—</b></div>
+      <div><span>Face tracked</span><b id="infFace">—</b></div>
     </div>
   </div>
 
@@ -358,26 +379,26 @@
   <div class="tab-panels">
     <div class="tab-panel active" id="t-identity">
       <div class="cards-4">
-        <article class="info-card"><h4>Chronological Age</h4><p>The AI can accurately estimate your actual age within a few years based on tissue elasticity and vascular wear.</p></article>
-        <article class="info-card"><h4>Biological Sex</h4><p>AI models can identify biological sex at birth just from a photo of your retina — a pattern-recognition feat human doctors cannot do with the naked eye.</p></article>
-        <article class="info-card"><h4>Unique Identity (Biometric ID)</h4><p>Like a fingerprint, your retinal vascular layout and iris patterns are completely unique and can be used for ironclad identity verification.</p></article>
-        <article class="info-card"><h4>Ethnicity / Ancestry Hints</h4><p>Certain pigmentations in the fundus and facial bone structures allow the AI to infer ethnic backgrounds.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Iris identity</h4><span class="tag low">Implemented</span></header><p>Stable texture, high entropy, and a rotation-tolerant Hamming match. This is the one strong claim on the page — and even iris biometrics can be defeated by a good presentation attack.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Chronological age</h4><span class="tag">Not implemented</span></header><p>Retinal “age gap” models exist, but they need fundus photographs and validated training data. An iris selfie is not an age sensor.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Biological sex</h4><span class="tag">Not implemented</span></header><p>Retinal models report roughly 80–90% AUC in research. That is a population statistic — not a reliable measurement of one person, and not available here.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Ancestry</h4><span class="tag high">Not supported</span></header><p>Iris colour correlates weakly with ancestry. Inferring ancestry from pigmentation is not a genetic test and has a long history of misuse.</p></article>
       </div>
     </div>
     <div class="tab-panel" id="t-behavior">
       <div class="cards-4">
-        <article class="info-card"><h4>Smoking Habits</h4><p>Chronic smoking alters the narrowing and stiffness of retinal blood vessels in a highly specific pattern that AI can flag.</p></article>
-        <article class="info-card"><h4>Sleep Deprivation</h4><p>Real-time rPPG face scans analyse microscopic muscle fatigue and skin perfusion to determine if you are severely sleep-deprived.</p></article>
-        <article class="info-card"><h4>Alcohol or Substance Use</h4><p>Immediate changes in HRV, blood-pressure spikes and pupil response dynamics can reveal current intoxication or withdrawal states.</p></article>
-        <article class="info-card"><h4>Fitness Levels</h4><p>By measuring how quickly your resting heart rate drops or shifts during a brief scan, the software estimates your baseline cardiovascular fitness.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Smoking</h4><span class="tag">Research only</span></header><p>Retinal vessel calibre changes are associated with smoking in large studies. There is no validated iris-photo equivalent, so this build makes no claim.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Sleep debt</h4><span class="tag high">Not supported</span></header><p>rPPG can show autonomic arousal; it cannot quantify how much you slept. Sleep assessment needs history, actigraphy or polysomnography.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Alcohol / substances</h4><span class="tag high">Not supported</span></header><p>Pupil size reacts to light, focus and arousal. A photograph cannot establish intoxication, and treating it as if it could would be harmful.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Fitness</h4><span class="tag high">Not supported</span></header><p>Resting heart rate is one weak input. A 60-second webcam clip is not a fitness test, and nothing here estimates VO₂ max.</p></article>
       </div>
     </div>
     <div class="tab-panel" id="t-emotion">
       <div class="cards-4">
-        <article class="info-card"><h4>True Stress &amp; Anxiety</h4><p>Even behind a stoic “poker face”, the AI reads micro-blushes and shifting HRV to see if your body is in a fight-or-flight state.</p></article>
-        <article class="info-card"><h4>Deception / Lie Detection</h4><p>Subtle involuntary spikes in blood pressure and localised temperature changes around the eyes are heavily researched for high-tech lie detection.</p></article>
-        <article class="info-card"><h4>Mood &amp; Cognitive Load</h4><p>Maps signs of intense mental focus, cognitive burnout, frustration or deep depression based on how facial capillaries respond to stimuli.</p></article>
-        <article class="info-card"><h4>Autonomic Vectors</h4><p>HRV and pulse-wave morphology decode the balance of sympathetic vs parasympathetic tone in real time — your private internal mood, externalised.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Stress &amp; anxiety</h4><span class="tag mod">Partial, non-specific</span></header><p>HRV reflects autonomic arousal, which correlates with stress — but also with caffeine, posture, breathing and illness. It cannot diagnose anxiety.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Lie detection</h4><span class="tag high">Not supported</span></header><p>Polygraph-style methods are unreliable, and no eye-photo method is validated for deception. This site does not attempt it.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Mood &amp; depression</h4><span class="tag high">Not supported</span></header><p>Facial capillaries do not encode mood. Depression is a clinical diagnosis made from history and validated instruments.</p></article>
+        <article class="info-card"><header class="card-head"><h4>Autonomic tone</h4><span class="tag low">Measured</span></header><p>RMSSD is computed over 60 seconds of beat intervals. It describes beat-to-beat variability — not your private emotional state.</p></article>
       </div>
     </div>
   </div>
@@ -386,25 +407,27 @@
 <!-- ================= LONGEVITY ================= -->
 <section class="section section-alt" id="longevity">
   <div class="section-head reveal">
-    <span class="eyebrow">Forecasting</span>
-    <h2>Longevity &amp; <span class="grad">death forecasting</span></h2>
-    <p>AI can calculate your systemic decay rate and issue structural predictions about your lifespan.</p>
+    <span class="eyebrow">Evidence</span>
+    <h2>What eye research can <span class="grad">actually predict</span></h2>
+    <p>These are real research directions, mostly from retinal imaging. None of them run in this build, and none of
+      them are an individual diagnosis.</p>
   </div>
   <div class="cards-3">
-    <article class="info-card tall reveal"><h4>⧗ The Retinal Age Gap (Mortality Risk)</h4><p>AI estimates biological age from a fundus scan. If your retinal age is <b>3+ years older</b> than chronological, research shows all-cause mortality risk increases <b>49%–67%</b> — hidden systemic cellular damage surfaced before it becomes a physical ailment.</p></article>
-    <article class="info-card tall reveal"><h4>⚕ Cancer Survival Odds</h4><p>Groundbreaking AI models analyse a single photograph of a patient's face to calculate a <b>“risk-of-death score”</b> — evaluating facial frailty, skin perfusion and muscular-mass indicators to map survival probabilities, helping doctors tailor oncology and end-of-life treatment.</p></article>
-    <article class="info-card tall reveal"><h4>⌁ Circulatory Mortality · QUARTZ</h4><p>Systems like the QUARTZ algorithm analyse the exact width and surface area of your retinal arteries to map an explicit timeline for potential fatal circulatory events, like massive strokes.</p></article>
+    <article class="info-card tall reveal"><h4>⧗ Retinal age gap</h4><p>Fundus-based deep-learning models estimate a “retinal age”. In large cohorts a gap of 3+ years has been associated with higher all-cause mortality — typically hazard ratios around 1.5–1.7, <b>not</b> a 49–67% individual risk. It needs a clinical fundus camera and a validated model.</p></article>
+    <article class="info-card tall reveal"><h4>⌁ Retinal vessel geometry</h4><p>Arterio-venous ratio and vessel tortuosity correlate with cardiovascular risk in epidemiology. QUARTZ is a research model computed from fundus images — not a timeline for a fatal stroke.</p></article>
+    <article class="info-card tall reveal"><h4>🧠 OCT &amp; neurodegeneration</h4><p>Peripapillary retinal nerve-fibre layer thinning is measurable with OCT and is being studied in MS, Alzheimer's and Parkinson's. An iris photograph cannot see the RNFL, so this site makes no neurological prediction.</p></article>
   </div>
 
   <div class="section-head reveal" style="margin-top:64px">
-    <span class="eyebrow">The 20-year window</span>
-    <h2>Neurological <span class="grad">time-traveling</span></h2>
-    <p>Because the retina shares embryonic origins with the brain, it acts as a direct, physical extension of the
-      central nervous system. AI eye tests can see your cognitive future.</p>
+    <span class="eyebrow">The honest version</span>
+    <h2>Why there is no <span class="grad">“death date”</span> here</h2>
+    <p>A percentage attached to a single person implies a precision the underlying cohort data does not have.
+      Risk models produce population-level associations; a clinician combines them with history, examination and
+      validated tests. A browser demo cannot substitute for that, and pretending otherwise is how people get hurt.</p>
   </div>
   <div class="cards-2">
-    <article class="info-card tall reveal"><h4>🧠 Alzheimer's Disease Detection</h4><p>Spectral-domain cameras and AI detect amyloid-beta protein deposits and neuroinflammation in the inner retinal layers. These microvascular and protein changes mirror exactly what is happening in the brain — allowing AI to predict Alzheimer's <b>up to 20 years before physical memory loss or symptoms appear</b>.</p></article>
-    <article class="info-card tall reveal"><h4>🗺 Early-Onset Brain Mapping · Eye-AD</h4><p>Frameworks like Eye-AD use graph neural networks to build a 3D structural map of retinal blood flow. Microscopic thinning of the retinal nerve fiber layer (RNFL) flags Mild Cognitive Impairment (MCI) and early-onset neurodegeneration <b>years ahead of standard clinical diagnostics</b>.</p></article>
+    <article class="info-card danger reveal"><h4>⚠ What a real system would require</h4><p>A clinically validated imaging device, a model trained and calibrated on a representative cohort, regulatory clearance, and a clinician to interpret the result alongside the rest of your history. None of that exists in a web page.</p></article>
+    <article class="info-card safe reveal"><h4>✔ What this build does instead</h4><p>It measures what a camera can actually measure — pulse, pulse variability, breathing, iris colour and iris texture — and tells you the error bars. Where a number cannot be trusted, it shows <b>“not measured”</b> instead of inventing one.</p></article>
   </div>
 </section>
 
@@ -412,14 +435,14 @@
 <section class="section" id="proof">
   <div class="section-head reveal">
     <span class="eyebrow">Identity</span>
-    <h2>Absolute biological proof of <span class="grad">humanity</span></h2>
-    <p>The eye holds an irreversible, uncopyable record of a person's physical reality — so it is being used to
-      deep-scan the boundaries of identity against deepfakes and AI bots.</p>
+    <h2>Iris identity: strong, <span class="grad">not absolute</span></h2>
+    <p>Iris texture is one of the better biometrics we have — stable across life, high entropy, and hard to duplicate
+      by accident. It is also irrevocable, spoofable with effort, and regulated as sensitive data.</p>
   </div>
   <div class="cards-3">
-    <article class="info-card tall reveal"><h4>🪪 Proof of Personhood · World ID</h4><p>Specialised biometric hardware — camera systems like <b>“The Orb”</b> — takes high-resolution iris and facial-depth scans. The AI processes these layers into a cryptographic hash to prove, with mathematical certainty, that you are a three-dimensional living human rather than an AI bot or deepfake — creating a global “World ID”.</p></article>
-    <article class="info-card tall reveal"><h4>👁 Hardware-Level Neural Authentication · Optic ID</h4><p>Commercial systems such as Apple's <b>Optic ID</b> decode your unique iris patterns under infrared light. The mathematical representation is so precise it differentiates between identical twins — an ironclad key to unlock personal data vaults.</p></article>
-    <article class="info-card tall reveal"><h4>🔐 Retinal Vascular Template</h4><p>Your retinal vessel geometry never changes after early childhood and cannot be forged, lent or forgotten — unlike passwords. It is simultaneously your strongest credential and your most sensitive biometric.</p></article>
+    <article class="info-card tall reveal"><h4>🪪 Proof of personhood · World ID</h4><p>Specialised hardware such as <b>“The Orb”</b> captures high-resolution iris and facial-depth data to issue a cryptographic proof of humanness. It combines biometrics with liveness checks and a proprietary fraud pipeline — not a mathematical guarantee that no one can ever be spoofed.</p></article>
+    <article class="info-card tall reveal"><h4>👁 Device authentication · Optic ID</h4><p>Commercial systems such as Apple's <b>Optic ID</b> match iris patterns under infrared light on-device. Apple reports separation between identical twins; the template stays in the Secure Enclave and never leaves the device.</p></article>
+    <article class="info-card tall reveal"><h4>🔐 Iris template</h4><p>Your iris pattern is stable, but unlike a password it cannot be rotated if leaked. That is why this build stores a template only with explicit consent, only in this browser, and gives you a Forget button.</p></article>
   </div>
 </section>
 
@@ -427,20 +450,20 @@
 <section class="section section-alt" id="compare">
   <div class="section-head reveal">
     <span class="eyebrow">Side by side</span>
-    <h2>rPPG vs <span class="grad">Oculomics</span></h2>
+    <h2>rPPG vs <span class="grad">Iris biometrics</span></h2>
   </div>
   <div class="table-wrap reveal">
     <table class="compare">
-      <thead><tr><th>Dimension</th><th>Technology 1 · rPPG</th><th>Technology 2 · Oculomics</th></tr></thead>
+      <thead><tr><th>Dimension</th><th>Face · rPPG</th><th>Eye · Iris</th></tr></thead>
       <tbody>
-        <tr><td>What it is</td><td>Software computer vision turning any camera into a health sensor</td><td>Medical eye-imaging hardware + deep-learning AI models</td></tr>
-        <tr><td>How it scans</td><td>Maps facial landmarks; reads micro-blushes in green-light absorption around eyes, eyelids, forehead</td><td>CFP / OCT imaging of the retina — deep microvasculature &amp; CNS tissue viewed non-invasively</td></tr>
-        <tr><td>Hardware</td><td>Any webcam or phone camera</td><td>Fundus camera / spectral-domain OCT (clinician)</td></tr>
-        <tr><td>Session time</td><td>~30 seconds, continuous</td><td>Seconds of imaging, periodic check-ups</td></tr>
-        <tr><td>Time horizon</td><td>Real-time (seconds → minutes)</td><td>Long-term (months → decades)</td></tr>
-        <tr><td>Core biomarkers</td><td>BPM, HRV, respiration, SpO₂, BP estimate, wellness / fatigue</td><td>Cardiovascular risk, CKD, metabolic health, neurodegeneration, biological age</td></tr>
-        <tr><td>Signals identity</td><td>Facial geometry, skin-perfusion behaviour, mood &amp; stress</td><td>Retinal vascular template, iris pattern, sex, ancestry, smoking signature</td></tr>
-        <tr><td>Best for</td><td>Daily monitoring, stress &amp; recovery, tele-health triage</td><td>Systemic screening, longevity, early disease warning</td></tr>
+        <tr><td>What it is</td><td>Contactless pulse measurement from tiny skin-colour changes</td><td>Iris texture matching plus observable ocular features</td></tr>
+        <tr><td>How it works</td><td>Face-mesh ROIs → green-channel FFT → pulse waveform</td><td>Iris landmarks → polar unwrap → Gabor phase code → masked Hamming distance</td></tr>
+        <tr><td>Hardware</td><td>Any webcam</td><td>Any camera held close; infrared gives much better results</td></tr>
+        <tr><td>Session</td><td>30–60 seconds</td><td>One sharp frame</td></tr>
+        <tr><td>Accuracy claim</td><td>Heart rate roughly ±3 BPM in good diffuse light</td><td>Genuine/impostor separation by Hamming distance</td></tr>
+        <tr><td>Returns</td><td>Pulse, HRV, breathing, amplitude, perfusion index</td><td>Identity template, colour, pupil ratio, crypts, screening flags</td></tr>
+        <tr><td>Cannot do</td><td>SpO₂, blood pressure, mood, sleep debt, intoxication</td><td>Genes, specific diseases, neurological diagnosis</td></tr>
+        <tr><td>Best for</td><td>Wellness tracking and signal-quality demonstrations</td><td>Local identity verification and biometric education</td></tr>
       </tbody>
     </table>
   </div>
@@ -451,27 +474,25 @@
   <div class="section-head reveal">
     <span class="eyebrow">The privacy question</span>
     <h2>Should you be <span class="grad">concerned?</span></h2>
-    <p>Yes — this technology is a double-edged sword. The same signal that measures your pulse can confirm who you
-      are, what you drink, whether you smoke and how stressed you are. Here is the honest risk surface, and how
-      this particular build answers it.</p>
+    <p>Yes. A camera pointed at your face produces sensitive signals, and an iris template is permanent in a way a
+      password is not. Here is the honest risk surface, and exactly what this build does about it.</p>
   </div>
   <div class="cards-2">
     <article class="info-card danger reveal"><h4>⚠ Where the risk comes from</h4>
       <ul class="ticks">
-        <li>Biometric templates are irrevocable — you cannot rotate your retina or your face.</li>
-        <li>“Anonymous” scans still confirm age, sex, ancestry and identity.</li>
-        <li>Inferred traits (stress, substance use, mood) could reach insurers or employers.</li>
-        <li>Frames uploaded to a cloud API become training data, breach data, subpoena data.</li>
-        <li>Retinal/iris images are high-value targets for deepfake &amp; replay attacks.</li>
+        <li>Biometric templates are irrevocable — you cannot rotate your iris if a template leaks.</li>
+        <li>Pulse and breathing patterns are health data, even when the diagnosis is wrong.</li>
+        <li>Cloud scans become training data, breach data and subpoena data.</li>
+        <li>Any system that claims to read mood, lies or disease from a photo is making claims it cannot support.</li>
       </ul>
     </article>
     <article class="info-card safe reveal"><h4>✔ How AI Eye Scan answers it</h4>
       <ul class="ticks">
-        <li><b>100% on-device:</b> every frame and pixel is processed inside your browser's memory.</li>
-        <li><b>No upload:</b> there is no backend, no API call, no storage layer for your images.</li>
-        <li><b>Explicit consent:</b> the camera is only requested after you press “Allow”.</li>
-        <li><b>Ephemeral:</b> closing the tab erases the session completely — nothing to delete.</li>
-        <li><b>Transparent:</b> the exact readouts (identity, mood, lifestyle) are shown to you first.</li>
+        <li><b>100% on-device:</b> every frame and pixel is processed in this browser tab.</li>
+        <li><b>No upload:</b> there is no backend, no analytics call and no image storage.</li>
+        <li><b>No defaults:</b> the camera starts only when you press the button, and stops on Esc.</li>
+        <li><b>Opt-in template:</b> the iris code is written to <code>localStorage</code> only if you tick the box — and Forget removes it.</li>
+        <li><b>No invented traits:</b> outputs that cannot be measured are shown as “not measured”, not as numbers.</li>
       </ul>
     </article>
   </div>
@@ -486,12 +507,12 @@
     <h2>FAQ</h2>
   </div>
   <div class="faq reveal">
-    <details open><summary>Is AI Eye Scan a medical device?</summary><p>No. It is an educational, on-device demonstration of rPPG and Oculomics. Outputs — especially HRV, blood pressure, SpO₂ and retinal risk scores — are algorithmic estimates and must not be used for diagnosis or treatment decisions.</p></details>
-    <details><summary>How accurate is webcam rPPG?</summary><p>Heart-rate extraction typically correlates strongly with ground truth under good, diffuse lighting with a still subject. SpO₂ and blood-pressure readings from a single RGB camera are far less reliable and are shown as directional estimates. Poor light, motion, heavy makeup or screen glare degrade the signal — watch the quality bar.</p></details>
-    <details><summary>Does any of my data leave my device?</summary><p>No. Face landmarks come from MediaPipe loaded once from a CDN; all frame pixels, retinal images and computations stay in your browser tab. Nothing is recorded or transmitted by this site.</p></details>
-    <details><summary>What is the difference between the two technologies?</summary><p>rPPG measures the <em>present</em>: continuous vitals from your face in real time. Oculomics measures the <em>trajectory</em>: long-term systemic and neurological risk from a retinal image. One is a dashboard, the other a forecast.</p></details>
-    <details><summary>What hardware does Oculomics need?</summary><p>In a clinic: Color Fundus Photography or OCT plus a clinician. Here you can upload any fundus image (or generate a demo) and the browser will compute vessel density, tortuosity, lesion load and RNFL texture signals from the pixels.</p></details>
-    <details><summary>Can it really tell my sex, ancestry or habits?</summary><p>Published models can infer several of these traits from retinal and facial patterns — which is exactly why the privacy section exists. This demo shows a transparent, local example of such readouts so you can see how much a scan gives away.</p></details>
+    <details open><summary>Is AI Eye Scan a medical device?</summary><p>No. It is an educational, on-device demonstration of rPPG and iris biometrics. Nothing here diagnoses, treats or prevents any condition. Heart rate, HRV, breathing and iris measurements are estimates with real error bars, and the ocular signs are screening prompts that require a clinician to interpret.</p></details>
+    <details><summary>How accurate is webcam rPPG?</summary><p>Heart rate from the green channel is typically within a few BPM of a chest strap under good, diffuse light with a still subject. HRV needs a longer window, so it stays hidden until 20 beat intervals have accumulated (about 30–60 seconds). SpO₂ and blood pressure are <b>not</b> measured — an RGB webcam does not have the wavelengths or calibration for them, so this site shows no number.</p></details>
+    <details><summary>Does any of my data leave my device?</summary><p>No. MediaPipe Face Mesh is bundled with this site and runs locally in WebAssembly; all frame pixels and computations stay in your browser. The site has no backend. An iris template is stored in <code>localStorage</code> only if you explicitly tick the consent box, and the Forget button deletes it.</p></details>
+    <details><summary>What is the difference between the two technologies?</summary><p>rPPG reads the <em>present</em>: a pulse waveform from tiny colour changes in your skin. Iris biometrics read <em>identity</em>: a stable texture code that can be matched later, plus observable features such as colour and pupil size. Neither one reads your future.</p></details>
+    <details><summary>Can an iris photo reveal my genes or medical conditions?</summary><p>No. Iris colour is strongly heritable (mainly HERC2/OCA2), but a photo measures the phenotype, not the genotype — it cannot report carrier status or polygenic risk. A small number of conditions produce visible iris signs (Wilson's Kayser–Fleischer ring, NF1 Lisch nodules, Down syndrome Brushfield spots), but those are slit-lamp findings. A phone photo can only raise a “possible — confirm clinically” flag, never a diagnosis. Iridology is not supported by evidence.</p></details>
+    <details><summary>What hardware would real retinal analysis need?</summary><p>A fundus camera or OCT scanner, a validated deep-learning model and a clinician to interpret it. This site deliberately does not pretend a webcam or an uploaded photo can replace that.</p></details>
   </div>
 </section>
 
@@ -502,19 +523,19 @@
   <div class="footer-grid">
     <div>
       <a class="brand" href="#top"><span class="brand-eye">◎</span><span class="brand-name">AI Eye Scan</span></a>
-      <p>Contactless rPPG vitals + AI retinal biomarkers, computed entirely on your device.</p>
+      <p>Contactless rPPG vitals + on-device iris biometrics — measured locally, with limits stated.</p>
     </div>
     <div>
       <h5>Technologies</h5>
       <a href="#rppg">Remote Photoplethysmography</a>
-      <a href="#oculomics">Oculomics retinal analysis</a>
+      <a href="#iris">Iris biometrics &amp; ocular signs</a>
       <a href="#compare">Comparison table</a>
     </div>
     <div>
-      <h5>Inference surface</h5>
-      <a href="#insights">Demographics &amp; behaviour</a>
-      <a href="#longevity">Longevity forecasting</a>
-      <a href="#proof">Proof of personhood</a>
+      <h5>Evidence</h5>
+      <a href="#insights">What can &amp; cannot be measured</a>
+      <a href="#longevity">Retinal research</a>
+      <a href="#proof">Iris identity</a>
     </div>
     <div>
       <h5>Trust</h5>
@@ -539,19 +560,20 @@
     <li class="done" data-step="2">HTML — all content sections</li>
     <li class="done" data-step="3">CSS — theme &amp; layout</li>
     <li class="done" data-step="4">rPPG scan engine (MediaPipe + FFT)</li>
-    <li class="done" data-step="5">Oculomics image-analysis engine</li>
+    <li class="done" data-step="5">Iris unwrap + Gabor code engine</li>
     <li class="done" data-step="6">App wiring — permission, tabs, FAQ</li>
-    <li class="done" data-step="7">QA pass &amp; verification</li>
-    <li class="done" data-step="8">Person-presence &amp; one-click retinal fixes</li>
-    <li class="done" data-step="9">Camera capture for retina scan</li>
+    <li class="done" data-step="7">Remove fabricated vitals &amp; retina scores</li>
+    <li class="done" data-step="8">Shared face-mesh model (one camera)</li>
+    <li class="done" data-step="9">Iris enrol / verify with local template</li>
     <li class="done" data-step="10">Publish to GitHub Pages</li>
   </ul>
   <div class="tracker-bar"><i id="trackerBar" style="width:100%"></i></div>
-  <div class="tracker-meta"><b id="trackerCount">9/9</b> · complete</div>
+  <div class="tracker-meta"><b id="trackerCount">10/10</b> · complete</div>
 </aside>
 
+<script src="js/facemesh.js"></script>
 <script src="js/rppg.js"></script>
-<script src="js/oculomics.js"></script>
+<script src="js/iris.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

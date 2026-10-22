@@ -1,7 +1,9 @@
 /* ============================================================
    AI Eye Scan — rPPG engine
    MediaPipe Face Mesh landmarks -> ROI green-channel sampling ->
-   FFT spectral decoding -> BPM / HRV / RR / SpO2 / BP / wellness
+   FFT spectral decoding -> BPM / HRV / respiratory rate / perfusion
+   SpO2 and blood pressure are deliberately NOT computed: an RGB
+   webcam lacks the wavelengths and calibration for them.
    All processing is local (in-memory, never uploaded).
    ============================================================ */
 (function () {
@@ -127,6 +129,10 @@
       this.raw = [];              // [{t,r,g,b,ga,gb}]
       this.trace = [];            // band-passed waveform for the chart
       this.peakMarks = [];
+      this.nn = [];               // rolling 60 s of beat intervals for HRV
+      this.amp = null;            // measured AC amplitude (a.u.)
+      this.pi = null;             // measured perfusion index (%)
+      this.unsub = null;
       this.running = false;
       this.stream = null;
       this.mesh = null;
@@ -222,6 +228,8 @@
         return;
       }
       this.setPerm('requesting');
+      // one camera at a time: release the iris scanner first
+      if (window.Iris && window.Iris.running) window.Iris.stop(false);
       try {
         this.stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
@@ -239,6 +247,7 @@
 
       this.running = true;
       this.raw = []; this.trace = []; this.peakMarks = [];
+      this.nn = []; this.amp = null; this.pi = null;
       this.m = {}; this.faceHits = 0; this.faceTot = 0;
       this.sessionStart = performance.now(); this.sessionDone = false;
       const empty = this.$('stageEmpty');
@@ -269,36 +278,29 @@
 
     restart() {
       this.raw = []; this.trace = []; this.peakMarks = [];
+      this.nn = []; this.amp = null; this.pi = null;
       this.m = {}; this.sessionStart = performance.now(); this.sessionDone = false;
       if (this.running) {
         const sec = Math.floor((performance.now() - this.sessionStart) / 1000);
         this.txt('badgeTimer', '00:00');
       }
-      this.txt('scanHint', 'Session restarted — hold still for 30 seconds.');
+      this.txt('scanHint', 'Session restarted — hold still for 60 seconds so HRV can accumulate.');
     }
 
     async initModel() {
-      if (typeof window.FaceMesh === 'function' && !window.__faceMeshFailed) {
-        try {
-          if (!this.mesh) {
-            const mesh = new window.FaceMesh({
-              locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
-            });
-            mesh.setOptions({
-              maxNumFaces: 1, refineLandmarks: true,
-              minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
-            });
-            mesh.onResults(r => {
-              this.lastLms = (r.multiFaceLandmarks && r.multiFaceLandmarks[0]) || null;
-            });
-            this.mesh = mesh;
-          }
-          this.model = 'facemesh'; this.modelErr = 0;
-          this.txt('badgeModel', 'Landmarks: MediaPipe face mesh');
-          this.cls('badgeModel', 'ok', true);
-          return;
-        } catch (e) { this.mesh = null; }
-      }
+      try {
+        if (!window.FaceMeshShared) throw new Error('shared loader missing');
+        this.mesh = await window.FaceMeshShared.get();
+        if (!this.unsub) {
+          this.unsub = window.FaceMeshShared.subscribe(r => {
+            this.lastLms = (r.multiFaceLandmarks && r.multiFaceLandmarks[0]) || null;
+          });
+        }
+        this.model = 'facemesh'; this.modelErr = 0;
+        this.txt('badgeModel', 'Landmarks: MediaPipe face mesh');
+        this.cls('badgeModel', 'ok', true);
+        return;
+      } catch (e) { this.mesh = null; }
       this.model = 'fallback';
       this.txt('badgeModel', 'Landmarks: colour-ROI fallback');
       this.cls('badgeModel', 'warn', true);
@@ -313,7 +315,7 @@
       this.busy = true;
       if (this.mesh && this.video.readyState >= 2) {
         try {
-          await this.mesh.send({ image: this.video });
+          await window.FaceMeshShared.send(this.mesh, this.video);
           this.modelErr = 0;
         } catch (e) {
           if (++this.modelErr > 40) { this.mesh = null; this.model = 'fallback'; this.txt('badgeModel', 'Landmarks: colour-ROI fallback'); }
@@ -336,10 +338,10 @@
       const ss = String(Math.floor(el % 60)).padStart(2, '0');
       this.txt('badgeTimer', `${mm}:${ss}`);
       const bar = this.$('sessionBar');
-      if (bar) bar.style.width = clamp(el / 30 * 100, 0, 100) + '%';
-      if (el > 30 && !this.sessionDone) {
+      if (bar) bar.style.width = clamp(el / 60 * 100, 0, 100) + '%';
+      if (el > 60 && !this.sessionDone) {
         this.sessionDone = true;
-        this.txt('scanHint', '✓ 30-second session complete — vitals snapshot locked. Keep going for a longer HRV window.');
+        this.txt('scanHint', '✓ 60-second session complete — HRV now has enough beats to report.');
       }
     }
 
@@ -471,6 +473,13 @@
       const sr = 30, winSec = 10, N = 512;
       const arr = this.raw;
       if (arr.length < 150) return;
+      // never fabricate vitals when no face is being tracked
+      if (this.model === 'facemesh' && !(this.lastFaceTime && performance.now() - this.lastFaceTime < 1700)) {
+        this.sqi = ema(this.sqi, 0, 0.3);
+        this.trace = [];
+        this.render(false);
+        return;
+      }
       const tEnd = arr[arr.length - 1].t;
       const t0 = Math.max(tEnd - winSec, arr[0].t);
       const count = Math.min(winSec * sr, Math.floor((tEnd - t0) * sr));
@@ -495,8 +504,8 @@
         for (let k = 0; k < (N >> 1); k++) mags[k] = Math.hypot(re[k], im[k]);
         return { re, im, mags };
       };
-      const dG = detrend(G, 31), dR = detrend(R, 31), dB = detrend(B, 31);
-      const sG = spec(dG), sR = spec(dR), sB = spec(dB);
+      const dG = detrend(G, 31);
+      const sG = spec(dG);
 
       // ---- heart rate ----
       const hrPeak = peakOf(sG.mags, sr, N, 0.7, 3.5);
@@ -517,21 +526,10 @@
       fft(bre, bim, true);
       const bp = Array.from(bre.subarray(0, count));
 
-      // ---- peaks -> HRV + upstroke ----
+      // ---- peaks -> upstroke + rolling 60 s HRV ----
       const peaks = findPeaks(bp, sr, 0.33);
-      let hrv = null, sdnn = null, upstroke = null;
-      if (peaks.length >= 5) {
-        const nn = [];
-        for (let i = 1; i < peaks.length; i++) {
-          const v = (peaks[i].t - peaks[i - 1].t) * 1000;
-          if (v >= 300 && v <= 2000) nn.push(v);
-        }
-        if (nn.length >= 4) {
-          let ss = 0, c = 0;
-          for (let i = 1; i < nn.length; i++) { const d = nn[i] - nn[i - 1]; ss += d * d; c++; }
-          hrv = Math.sqrt(ss / Math.max(1, c));
-          sdnn = std(nn);
-        }
+      let upstroke = null;
+      if (peaks.length >= 3) {
         const ups = [];
         for (const p of peaks) {
           const a = Math.max(0, p.idx - Math.floor(0.5 * sr));
@@ -542,12 +540,36 @@
         }
         if (ups.length >= 3) upstroke = mean(ups);
       }
+      // Beat intervals are accumulated across the whole session: RMSSD over a
+      // 10 s window is statistically meaningless, so nothing is shown until
+      // we have at least 20 intervals (~20 beats ≈ 20-30 s, 60 s window).
+      if (peaks.length >= 2) {
+        for (let i = 1; i < peaks.length; i++) {
+          const bt = t0 + peaks[i].t;
+          const iv = (peaks[i].t - peaks[i - 1].t) * 1000;
+          if (iv < 300 || iv > 2000) continue;
+          let dup = false;
+          for (let k = this.nn.length - 1; k >= 0 && k >= this.nn.length - 5; k--) {
+            if (Math.abs(this.nn[k].t - bt) < 0.2) { dup = true; break; }
+          }
+          if (!dup) this.nn.push({ t: bt, iv });
+        }
+        const cutoff = performance.now() / 1000 - 60;
+        while (this.nn.length && this.nn[0].t < cutoff) this.nn.shift();
+      }
+      let hrv = null;
+      if (this.nn.length >= 20) {
+        const ivs = this.nn.map(x => x.iv);
+        let ss = 0, c = 0;
+        for (let i = 1; i < ivs.length; i++) { const d = ivs[i] - ivs[i - 1]; ss += d * d; c++; }
+        hrv = Math.sqrt(ss / Math.max(1, c));
+      }
 
-      // ---- SpO2 (red vs green AC/DC) ----
-      const dcR = mean(R.subarray(0, count)), dcG = mean(G.subarray(0, count)), dcB = mean(B.subarray(0, count));
-      const ac = s => Math.sqrt(bandPower(s.mags, sr, N, 0.7, 3.5));
-      const ratio = (ac(sR) / Math.max(1e-6, dcR)) / Math.max(1e-6, ac(sG) / Math.max(1e-6, dcG));
-      const spo2 = clamp(100 - 16 * (ratio - 0.55), 90, 100);
+      // ---- measured pulse amplitude + perfusion index (green channel) ----
+      const dcG = mean(G.subarray(0, count));
+      const acRms = std(dG.subarray(0, count));
+      this.amp = acRms;
+      this.pi = clamp(acRms / Math.max(1e-6, dcG) * 100, 0, 12);
 
       // ---- respiration: 2 s moving-average low-pass, peak in 0.1–0.6 Hz ----
       const lowp = detrend(G, 60);
@@ -573,41 +595,34 @@
       const bandRatio = bandPower(sG.mags, sr, N, 0.7, 3.5) / Math.max(1e-9, bandPower(sG.mags, sr, N, 0.05, 8));
       const sqi = clamp(0.4 * clamp(corr, 0, 1) + 0.4 * clamp(bandRatio * 5, 0, 1) + 0.2 * this.faceRatio, 0, 1);
       this.sqi = ema(this.sqi, sqi, 0.25);
-      // ---- blood pressure estimate ----
-      const hrvRef = hrv === null ? 45 : hrv;
-      let sbp = 118 + (110 - (upstroke === null ? 120 : upstroke)) * 0.12 + (hr - 70) * 0.18
-        + (hrvRef < 40 ? (40 - hrvRef) * 0.09 : 0);
-      sbp = clamp(sbp, 95, 160);
-      let dbp = clamp(sbp * 0.66 + (hr - 70) * 0.10, 55, 105);
-      dbp = clamp(dbp, sbp - 60, sbp - 24);
 
       // ---- smooth everything ----
       const m = this.m;
-      // accept the first good frames immediately (don't wait for the smoothed score to catch up)
-      const good = sqi > 0.34 || this.sqi > 0.34;
+      const good = sqi > 0.30 || this.sqi > 0.30;
+
+      // trace for the chart (drawn even on a weak signal)
+      this.trace = bp.slice(Math.max(0, count - 270));
+      this.peakMarks = peaks.slice(-14).map(p => p.idx - (count - this.trace.length));
+      this.lastBeat = performance.now();
+      if (!good) { this.render(false); return; }
+
       m.bpm = ema(m.bpm, hr, 0.18);
       m.hrv = hrv !== null ? ema(m.hrv, hrv, 0.15) : m.hrv;
       m.rr = rr !== null ? ema(m.rr, rr, 0.2) : m.rr;
-      m.spo2 = good ? ema(m.spo2, spo2, 0.12) : m.spo2;
-      m.sbp = good ? ema(m.sbp, sbp, 0.10) : m.sbp;
-      m.dbp = good ? ema(m.dbp, dbp, 0.10) : m.dbp;
+      m.amp = ema(m.amp, this.amp, 0.12);
+      m.pi = ema(m.pi, this.pi, 0.12);
+      m.upstroke = upstroke;
 
       let well = 100;
       well -= Math.max(0, m.bpm - 78) * 0.9 + Math.max(0, 55 - m.bpm) * 0.8;
       if (m.hrv != null) well -= Math.max(0, 45 - m.hrv) * 0.7;
       if (m.rr != null) well -= Math.max(0, Math.abs(m.rr - 15) - 4) * 2;
-      if (m.spo2 != null) well -= Math.max(0, 96 - m.spo2) * 3.5;
       m.well = clamp(ema(m.well, clamp(well, 0, 100), 0.2), 0, 100);
 
       const stress = clamp((100 - m.well) * 0.85 + (m.hrv != null && m.hrv < 40 ? (40 - m.hrv) * 0.6 : 0), 0, 100);
       const fatigue = clamp((100 - m.well) * 0.7 + Math.max(0, m.bpm - 85) * 1.1, 0, 100);
       m.stress = ema(m.stress, stress, 0.25);
       m.fatigue = ema(m.fatigue, fatigue, 0.25);
-
-      // trace for the chart
-      this.trace = bp.slice(Math.max(0, count - 270));
-      this.peakMarks = peaks.slice(-14).map(p => p.idx - (count - this.trace.length));
-      this.lastBeat = performance.now();
 
       this.render(good);
     }
@@ -616,22 +631,28 @@
     render(good) {
       const m = this.m;
       this.txt('mBpm', fmt(m.bpm, 0));
-      this.txt('mHrv', fmt(m.hrv, 0));
+      this.txt('mHrv', m.hrv != null ? fmt(m.hrv, 0) : '--');
       this.txt('mRr', fmt(m.rr, 1));
-      this.txt('mSpo2', fmt(m.spo2, 1));
-      this.txt('mBp', `${fmt(m.sbp, 0)}/${fmt(m.dbp, 0)}`);
+      this.txt('mAmp', m.amp != null ? m.amp.toFixed(1) : '--');
+      this.txt('mPi', m.pi != null ? m.pi.toFixed(2) : '--');
       this.txt('mWell', fmt(m.well, 0));
       this.txt('chartPeak', `peak: ${fmt(m.bpm, 0)} BPM`);
 
-      const label = m.well >= 80 ? 'Recharged · low stress' : m.well >= 65 ? 'Balanced · normal load'
-        : m.well >= 50 ? 'Strained · stress elevated' : 'Fatigued · high strain';
-      this.txt('mWellSub', `${label} · fatigue ${fmt(m.fatigue, 0)}/100`);
+      const label = m.well >= 80 ? 'Low load' : m.well >= 65 ? 'Balanced load'
+        : m.well >= 50 ? 'Elevated load' : 'High load';
+      this.txt('mWellSub', `${label} · derived, non-clinical`);
+
+      // honest sub-labels
+      this.txt('mHrvSub', m.hrv != null
+        ? `RMSSD over ${this.nn.length} intervals · beat-to-beat`
+        : `Needs a longer session — ${this.nn.length}/20 intervals`);
+      this.txt('mRrSub', 'experimental · breathing modulates the pulse');
 
       const pct = Math.round(this.sqi * 100);
       const bar = this.$('qBar'); if (bar) bar.style.width = pct + '%';
       this.txt('qText', !good
         ? `Weak signal (${pct}%) — face the light, hold still, avoid backlight`
-        : `Signal quality ${pct}% — tracking ${this.model === 'facemesh' ? 'face mesh ROIs' : 'skin ROI'}`);
+        : `Signal quality ${pct}% — tracking ${this.model === 'facemesh' ? 'face mesh ROIs' : 'skin ROI (approximate)'}`);
       const bq = this.$('badgeQuality');
       if (bq) {
         bq.textContent = `Signal: ${pct}%`;
@@ -648,29 +669,19 @@
       window.dispatchEvent(new CustomEvent('rppg:update', { detail: { ...m, sqi: this.sqi, good } }));
     }
 
+    /* Only measured quantities here — no mood, sleep or substance guesses. */
     renderInferences() {
       const m = this.m;
-      if (m.stress === undefined || m.well === undefined) return;
-      const stress = m.stress < 25 ? 'Calm · parasympathetic'
-        : m.stress < 50 ? 'Mild tension'
-          : m.stress < 72 ? 'Elevated — fight-or-flight' : 'High acute stress';
-      const sleep = (m.hrv != null && m.hrv >= 45 && m.bpm < 76) ? 'Likely restored'
-        : (m.hrv != null && m.hrv >= 32) ? 'Fair — mild debt'
-          : 'Sleep-deprived likely';
-      const fit = m.bpm < 62 ? 'Athletic baseline' : m.bpm < 72 ? 'Good conditioning'
-        : m.bpm < 84 ? 'Average' : 'Deconditioned';
-      const mood = m.well >= 78 ? 'Stable · focused' : m.well >= 62 ? 'Neutral · mild burnout'
-        : m.well >= 48 ? 'Cognitive fatigue' : 'Low mood signal';
-      const sub = (m.bpm > 86 && m.hrv != null && m.hrv < 26) ? 'Elevated impairment signal'
-        : (m.bpm > 92) ? 'HR spike — review context' : 'No acute signal';
-
-      this.txt('infStress', stress);
-      this.txt('infSleep', sleep);
-      this.txt('infFitness', fit);
-      this.txt('infMood', mood);
-      this.txt('infSubstance', sub);
+      const present = this.model === 'facemesh'
+        ? !!(this.lastFaceTime && performance.now() - this.lastFaceTime < 1700)
+        : null;
+      this.txt('infBpm', m.bpm != null ? `${fmt(m.bpm, 0)} BPM` : '—');
+      this.txt('infHrv', m.hrv != null ? `${fmt(m.hrv, 0)} ms` : (this.nn.length ? `${this.nn.length}/20 beats` : 'needs 60 s'));
+      this.txt('infRr', m.rr != null ? `${fmt(m.rr, 1)} /min` : '—');
+      this.txt('infQuality', `${fmt(this.sqi * 100, 0)}%`);
+      this.txt('infFace', present === null ? 'skin ROI' : present ? 'Yes' : 'No');
       const note = document.querySelector('.strip-note');
-      if (note) note.textContent = `— live · fatigue ${fmt(m.fatigue, 0)}/100 · stress ${fmt(m.stress, 0)}/100`;
+      if (note) note.textContent = '— measured in this tab only';
     }
 
     /* ---------- drawing ---------- */
